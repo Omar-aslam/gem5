@@ -613,6 +613,15 @@ class InstructionQueue
         statistics::Vector fuBusy;
         /** Number of times the FU was busy per instruction issued. */
         statistics::Formula fuBusyRate;
+        // =====================================================================
+        // OIR stats — Group 19, ENGG 4540
+        // =====================================================================
+        statistics::Scalar oir_emptySlotsTotal;
+        statistics::Scalar oir_replicasInserted;
+        statistics::Scalar oir_candidatesSkipped;
+        // =====================================================================
+        // END OIR stats
+        // =====================================================================
     } iqStats;
 
    public:

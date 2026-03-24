@@ -316,7 +316,14 @@ InstructionQueue::IQStats::IQStats(CPU *cpu, const unsigned &total_width)
       ADD_STAT(fuBusyRate,
                statistics::units::Rate<statistics::units::Count,
                                        statistics::units::Count>::get(),
-               "FU busy rate (busy events/executed inst)")
+               "FU busy rate (busy events/executed inst)"),
+      // OIR stats — Group 19, ENGG 4540
+      ADD_STAT(oir_emptySlotsTotal, statistics::units::Count::get(),
+               "OIR: empty issue slots per cycle"),
+      ADD_STAT(oir_replicasInserted, statistics::units::Count::get(),
+               "OIR: replicas inserted into issue slots"),
+      ADD_STAT(oir_candidatesSkipped, statistics::units::Count::get(),
+               "OIR: candidates skipped for replication")
 {
     instsAdded
         .prereq(instsAdded);
