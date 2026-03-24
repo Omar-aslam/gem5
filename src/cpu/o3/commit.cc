@@ -1256,6 +1256,22 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
     updateComInstStats(head_inst);
 
+    // =========================================================================
+    // OIR: log commit stats — Group 19, ENGG 4540
+    // =========================================================================
+    if (head_inst->hasReplica) {
+        ++stats.oir_matches;
+        DPRINTF(Commit, "OIR: [sn:%llu] primary has replica, logging match\n",
+                head_inst->seqNum);
+    } else {
+        ++stats.oir_skipped;
+        DPRINTF(Commit, "OIR: [sn:%llu] no replica, skipping\n",
+                head_inst->seqNum);
+    }
+    // =========================================================================
+    // END OIR
+    // =========================================================================
+
     DPRINTF(Commit,
             "[tid:%i] [sn:%llu] Committing instruction with PC %s\n",
             tid, head_inst->seqNum, head_inst->pcState());
