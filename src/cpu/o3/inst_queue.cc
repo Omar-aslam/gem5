@@ -995,6 +995,22 @@ InstructionQueue::scheduleReadyInsts()
 
             issuing_inst->setIssued();
             ++total_issued;
+            // =========================================================================
+            // OIR: track issued instruction as replication candidate
+            // =========================================================================
+            if (!issuing_inst->isReplica &&
+                !issuing_inst->isMemRef() &&
+                !issuing_inst->isControl() &&
+                issuing_inst->numDestRegs() > 0) {
+                issuing_inst->hasReplica = false;
+                iqStats.oir_candidatesSkipped++;
+                DPRINTF(IQ, "OIR: candidate [sn:%llu] tracked\n",
+                        issuing_inst->seqNum);
+            }
+            // =========================================================================
+            // END OIR
+            // =========================================================================
+
 
 #if TRACING_ON
             issuing_inst->issueTick = curTick() - issuing_inst->fetchTick;
