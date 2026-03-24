@@ -879,6 +879,7 @@ InstructionQueue::scheduleReadyInsts()
     // This will avoid trying to schedule a certain op class if there are no
     // FUs that handle it.
     int total_issued = 0;
+    std::vector<DynInstPtr> oirCandidates; // OIR Group 19
     ListOrderIt order_it = listOrder.begin();
     ListOrderIt order_end_it = listOrder.end();
 
@@ -995,21 +996,13 @@ InstructionQueue::scheduleReadyInsts()
 
             issuing_inst->setIssued();
             ++total_issued;
-            // =========================================================================
-            // OIR: track issued instruction as replication candidate
-            // =========================================================================
+            // OIR: collect replication candidates this cycle
             if (!issuing_inst->isReplica &&
                 !issuing_inst->isMemRef() &&
                 !issuing_inst->isControl() &&
                 issuing_inst->numDestRegs() > 0) {
-                issuing_inst->hasReplica = false;
-                iqStats.oir_candidatesSkipped++;
-                DPRINTF(IQ, "OIR: candidate [sn:%llu] tracked\n",
-                        issuing_inst->seqNum);
+                oirCandidates.push_back(issuing_inst);
             }
-            // =========================================================================
-            // END OIR
-            // =========================================================================
 
 
 #if TRACING_ON
@@ -1040,13 +1033,28 @@ InstructionQueue::scheduleReadyInsts()
     iqStats.numIssuedDist.sample(total_issued);
     iqStats.instsIssued+= total_issued;
     // =========================================================================
-    // OIR: count empty issue slots this cycle
+    // OIR: fill empty slots with replicas — Group 19, ENGG 4540
     // =========================================================================
     if (total_issued < totalWidth) {
         unsigned emptySlots = totalWidth - total_issued;
         iqStats.oir_emptySlotsTotal += emptySlots;
-        DPRINTF(IQ, "OIR: %d empty slots this cycle\n", emptySlots);
+        unsigned replicated = 0;
+        for (auto &cand : oirCandidates) {
+            if (replicated >= emptySlots) break;
+            if (!cand->hasReplica && !cand->isSquashed()) {
+                cand->hasReplica = true;
+                ++iqStats.oir_replicasInserted;
+                ++replicated;
+                DPRINTF(IQ, "OIR: marked [sn:%llu] for replication\n",
+                        cand->seqNum);
+            }
+        }
+        // remaining candidates that were not replicated
+        iqStats.oir_candidatesSkipped += oirCandidates.size() - replicated;
+    } else {
+        iqStats.oir_candidatesSkipped += oirCandidates.size();
     }
+    oirCandidates.clear();
     // =========================================================================
     // END OIR
     // =========================================================================
