@@ -81,6 +81,17 @@ class DynInst : public ExecContext, public RefCounted
   public:
     // The list of instructions iterator type.
     typedef typename std::list<DynInstPtr>::iterator ListIt;
+    // =========================================================================
+    // OIR fields — Group 19, ENGG 4540
+    // =========================================================================
+    bool isReplica = false;
+    bool hasReplica = false;
+    uint64_t oirResult = 0;
+    bool oirCompared = false;
+    // =========================================================================
+    // END OIR fields
+    // =========================================================================
+
 
     struct Arrays
     {
