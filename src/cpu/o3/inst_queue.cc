@@ -1023,6 +1023,18 @@ InstructionQueue::scheduleReadyInsts()
 
     iqStats.numIssuedDist.sample(total_issued);
     iqStats.instsIssued+= total_issued;
+    // =========================================================================
+    // OIR: count empty issue slots this cycle
+    // =========================================================================
+    if (total_issued < totalWidth) {
+        unsigned emptySlots = totalWidth - total_issued;
+        iqStats.oir_emptySlotsTotal += emptySlots;
+        DPRINTF(IQ, "OIR: %d empty slots this cycle\n", emptySlots);
+    }
+    // =========================================================================
+    // END OIR
+    // =========================================================================
+
 
     // If we issued any instructions, tell the CPU we had activity.
     // @todo If the way deferred memory instructions are handeled due to
