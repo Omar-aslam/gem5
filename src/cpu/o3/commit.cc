@@ -185,7 +185,14 @@ Commit::CommitStats::CommitStats(CPU *cpu, Commit *commit)
       ADD_STAT(committedInstType, statistics::units::Count::get(),
                "Class of committed instruction"),
       ADD_STAT(commitEligibleSamples, statistics::units::Cycle::get(),
-               "number cycles where commit BW limit reached")
+               "number cycles where commit BW limit reached"),
+      // OIR stats — Group 19, ENGG 4540
+      ADD_STAT(oir_matches, statistics::units::Count::get(),
+               "OIR: fault-free primary/replica comparisons"),
+      ADD_STAT(oir_mismatches, statistics::units::Count::get(),
+               "OIR: faults detected by OIR comparator"),
+      ADD_STAT(oir_skipped, statistics::units::Count::get(),
+               "OIR: primaries committed with no replica")
 {
     using namespace statistics;
 

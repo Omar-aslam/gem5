@@ -495,6 +495,15 @@ class Commit
 
         /** Number of cycles where the commit bandwidth limit is reached. */
         statistics::Scalar commitEligibleSamples;
+        // =====================================================================
+        // OIR stats — Group 19, ENGG 4540
+        // =====================================================================
+        statistics::Scalar oir_matches;
+        statistics::Scalar oir_mismatches;
+        statistics::Scalar oir_skipped;
+        // =====================================================================
+        // END OIR stats
+        // =====================================================================
     } stats;
 };
 
