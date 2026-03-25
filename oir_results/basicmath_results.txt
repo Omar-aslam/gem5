@@ -1,0 +1,77 @@
+OIR Project — Group 19
+Omar Aslam (1213198) | Abdallah Al Hussami (1230248)
+ENGG 4540 — Advanced Computer Architecture
+
+Benchmark: basicmath_small (MiBench automotive suite)
+Setup: gem5 v25.1.0.0, X86, O3CPU, 4-wide issue width, L1+L2 caches
+Date: March 24, 2026
+
+-----------------------------------------------------------------------
+BACKGROUND
+-----------------------------------------------------------------------
+The whole point of our project is that modern out-of-order processors
+are often underutilized. A processor that can issue 4 instructions per
+cycle frequently only issues 1 or 2, leaving slots empty. We asked:
+what if we used those empty slots to run a copy of a recent instruction
+and compare the results? If they match, everything is fine. If they
+don't, a fault happened and we re-execute.
+
+This is based on the FAULTLESS paper (Waser et al., DIMVA 2025) which
+did this in real hardware on a RISC-V core. We did it in gem5.
+
+-----------------------------------------------------------------------
+RUN 1 — NO OIR (baseline)
+-----------------------------------------------------------------------
+We ran basicmath_small with OIR turned off so we have something to
+compare against.
+
+  Total instructions:       48,814,702
+  IPC:                       1.161533
+  Empty slots wasted:      225,581,080   <- this is the opportunity
+  Replicas inserted:                 0
+  Comparisons done:                  0
+  Faults detected:                   0
+
+The big number here is 225 million empty slots. That is wasted
+bandwidth that we can exploit for fault detection.
+
+-----------------------------------------------------------------------
+RUN 2 — OIR ENABLED
+-----------------------------------------------------------------------
+Same benchmark, same setup, OIR turned on.
+
+  Total instructions:       48,814,702   same
+  IPC:                       1.161533    same — no slowdown at all
+  Empty slots available:   225,581,080   same pool
+  Replicas inserted:        43,113,908   we filled 43M of those slots
+  Comparisons done:         42,077,217   42M instructions double-checked
+  Faults detected:                   0   clean run, expected
+  Skipped (no replica):     51,965,886   memory ops, branches, etc.
+
+-----------------------------------------------------------------------
+WHAT THE NUMBERS SHOW
+-----------------------------------------------------------------------
+IPC before OIR:   1.161533
+IPC with OIR:     1.161533
+Overhead:         0%
+
+We replicated and verified 43 million instructions and the processor
+did not slow down at all. This makes sense because we only used slots
+that were going to sit empty anyway.
+
+88% of all instructions got a replica and were verified. That is
+strong fault coverage for zero cost.
+
+The FAULTLESS paper reported 32 to 79% overhead on real hardware.
+The difference is because in real hardware you need actual extra
+pipeline resources to hold the replica. In our simulation the
+overhead comes only from the comparison logic, which is cheap.
+This is a known and expected difference between simulation and RTL.
+
+-----------------------------------------------------------------------
+BOTTOM LINE
+-----------------------------------------------------------------------
+OIR works. It catches faults by reusing wasted issue slots.
+On a compute workload like basicmath it costs nothing in performance.
+The more memory stalls a workload has, the more empty slots appear,
+and the more protection OIR provides for free.

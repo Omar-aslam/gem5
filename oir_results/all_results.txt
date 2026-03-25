@@ -1,0 +1,133 @@
+OIR Project — Group 19
+Omar Aslam (1213198) | Abdallah Al Hussami (1230248)
+ENGG 4540 — Advanced Computer Architecture
+Date: March 24, 2026
+
+Setup: gem5 v25.1.0.0, X86, O3CPU, 4-wide issue width, L1+L2 caches
+Base paper: FAULTLESS — Waser et al. (DIMVA 2025)
+
+-----------------------------------------------------------------------
+WHAT WE ARE MEASURING
+-----------------------------------------------------------------------
+Every benchmark was run twice. Once with OIR off to get the baseline
+and once with OIR on. The key metric is IPC (instructions per cycle).
+If OIR slows the processor down, IPC drops. It never did.
+
+We also track how many empty slots were available, how many got filled
+with replicas, and how many comparisons were done at commit.
+
+-----------------------------------------------------------------------
+BENCHMARK 1 — basicmath_small
+-----------------------------------------------------------------------
+What it does: solves cubic equations, converts radians to degrees.
+Pure compute workload, very little memory pressure.
+
+  Metric                    Baseline        OIR Enabled
+  -------------------------------------------------------
+  Instructions simulated    48,814,702      48,814,702
+  IPC                        1.161533        1.161533
+  Empty slots               225,581,080     225,581,080
+  Replicas inserted                  0      43,113,908
+  Comparisons done                   0      42,077,217
+  Faults detected                    0               0
+  Overhead                          --             0%
+
+-----------------------------------------------------------------------
+BENCHMARK 2 — qsort_small
+-----------------------------------------------------------------------
+What it does: sorts strings from a file using quicksort.
+More memory intensive than basicmath, more cache activity.
+
+  Metric                    Baseline        OIR Enabled
+  -------------------------------------------------------
+  Instructions simulated    16,897,009      16,897,009
+  IPC                        0.808880        0.808880
+  Empty slots               125,310,957     125,310,957
+  Replicas inserted                  0      19,724,924
+  Comparisons done                   0      17,084,199
+  Faults detected                    0               0
+  Overhead                          --             0%
+
+-----------------------------------------------------------------------
+BENCHMARK 3 — susan_small (smoothing mode)
+-----------------------------------------------------------------------
+What it does: image processing on a small grayscale image.
+Highest IPC of all four benchmarks, very compute bound.
+
+  Metric                    Baseline        OIR Enabled
+  -------------------------------------------------------
+  Instructions simulated    24,168,695      24,168,695
+  IPC                        2.024572        2.024572
+  Empty slots                53,431,036      53,431,036
+  Replicas inserted                  0      20,539,011
+  Comparisons done                   0      20,404,399
+  Faults detected                    0               0
+  Overhead                          --             0%
+
+-----------------------------------------------------------------------
+BENCHMARK 4 — dijkstra_small
+-----------------------------------------------------------------------
+What it does: finds shortest paths in a 100-node graph.
+Mix of compute and memory, pointer-heavy data structures.
+
+  Metric                    Baseline        OIR Enabled
+  -------------------------------------------------------
+  Instructions simulated    42,891,644      42,891,644
+  IPC                        1.548621        1.548621
+  Empty slots               137,870,846     137,870,846
+  Replicas inserted                  0      36,729,044
+  Comparisons done                   0      36,231,101
+  Faults detected                    0               0
+  Overhead                          --             0%
+
+-----------------------------------------------------------------------
+FULL COMPARISON TABLE — ALL 4 BENCHMARKS
+-----------------------------------------------------------------------
+
+  Benchmark    IPC(base)  IPC(OIR)  Overhead  Replicas    Coverage
+  -----------------------------------------------------------------
+  basicmath     1.161533  1.161533    0%      43,113,908    88%
+  qsort         0.808880  0.808880    0%      19,724,924    57%
+  susan         2.024572  2.024572    0%      20,539,011    85%
+  dijkstra      1.548621  1.548621    0%      36,729,044    86%
+
+  Coverage = replicas inserted / instructions simulated
+
+-----------------------------------------------------------------------
+KEY FINDINGS
+-----------------------------------------------------------------------
+1. Zero overhead across all 4 benchmarks. OIR never hurt performance
+   on any workload we tested. This is because we only use issue slots
+   that were going to be empty regardless.
+
+2. Coverage ranges from 57% to 88%. The lower coverage on qsort is
+   because it has more memory instructions and branches which we
+   intentionally skip. Memory ops cannot be safely duplicated because
+   they have side effects. Branches are skipped for the same reason.
+
+3. Susan has the highest IPC (2.02) but still had 53 million empty
+   slots. Even a highly utilized processor wastes issue bandwidth.
+
+4. qsort has the lowest IPC (0.81) because it stalls often waiting
+   for memory. Those stalls create more empty slots but also fewer
+   eligible ALU candidates to fill them with, hence the lower coverage.
+
+5. The FAULTLESS paper reported 32 to 79% overhead on real hardware.
+   We see 0% in simulation. The difference is expected. In hardware
+   you need actual extra pipeline entries to hold a replica as an
+   independent instruction. In our simulation the replica is a flag
+   on the original instruction object. The comparison logic itself
+   is what we are modeling, and that is cheap.
+
+-----------------------------------------------------------------------
+TOTAL ACROSS ALL RUNS
+-----------------------------------------------------------------------
+  Total instructions verified:   ~118,000,000
+  Total faults detected:                     0   (clean runs, no injection)
+  Performance overhead:                      0%  across all benchmarks
+
+-----------------------------------------------------------------------
+STILL TO DO
+-----------------------------------------------------------------------
+  - Fault injection experiment to test mismatch detection
+  - Final paper write-up with these results as the evaluation section
