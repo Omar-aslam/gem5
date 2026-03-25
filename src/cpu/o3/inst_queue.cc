@@ -1038,6 +1038,7 @@ InstructionQueue::scheduleReadyInsts()
     if (total_issued < totalWidth) {
         unsigned emptySlots = totalWidth - total_issued;
         iqStats.oir_emptySlotsTotal += emptySlots;
+        // OIR_DISABLED for baseline
         unsigned replicated = 0;
         for (auto &cand : oirCandidates) {
             if (replicated >= emptySlots) break;
