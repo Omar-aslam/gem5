@@ -4,49 +4,66 @@ ENGG 4540 — Advanced Computer Architecture
 Date: March 26, 2026
 
 Branch: fault-injection
-Benchmark: dijkstra_small
+Method: Single bit-flip injected at instruction #500000 using XOR 0x1
+        oirResultCopy saved at issue time, oirResult compared at commit
+        If they differ, oir_mismatches increments and fault is reported
 
 -----------------------------------------------------------------------
-HOW THE FAULT WAS INJECTED
+HOW THE FAULT WORKS
 -----------------------------------------------------------------------
-At instruction #500000 that has a replica assigned, we flip bit 0 of
-oirResult using XOR with 0x1. This simulates a single bit-flip
-transient fault occurring in a register value mid-execution.
-
-The comparator at commit then compares oirResult against oirResultCopy
-which was saved at issue time before any fault could occur.
-
------------------------------------------------------------------------
-CLEAN RUN (no fault)
------------------------------------------------------------------------
-simInsts                  42,891,644
-IPC                        1.548621
-oir_replicasInserted      36,729,044
-oir_matches               36,231,101
-oir_mismatches                     0
-oir_skipped               44,311,866
+When an instruction is marked for replication, we save a copy of its
+result into oirResultCopy. At instruction #500000 we flip bit 0 of
+oirResult to simulate a transient hardware fault. At commit, the
+comparator checks oirResult against oirResultCopy. A difference means
+a fault was detected and oir_mismatches increments.
 
 -----------------------------------------------------------------------
-FAULT INJECTION RUN
+BENCHMARK 1 — basicmath_small
 -----------------------------------------------------------------------
-simInsts                  42,891,644     same — program still completed
-IPC                        1.548621      same — zero overhead maintained
-oir_replicasInserted      36,729,044     same
-oir_matches               36,231,100     one less match (the faulted one)
-oir_mismatches                     1     FAULT DETECTED
-oir_skipped               44,311,866     same
+Fault injected at:   instruction #500000
+Fault detected at:   sequence number 1208708
+Bit-flip:            oirResult 0x0 → 0x1
 
-Fault injected at:  instruction #500000
-Fault detected at:  sequence number 1191350
-Bit-flip:           oirResult 0x0 → 0x1 (bit 0 flipped)
+  simInsts               48,814,702
+  IPC                     1.161533     unchanged from clean run
+  oir_replicasInserted   43,113,908
+  oir_matches            42,077,216   one less than clean (42,077,217)
+  oir_mismatches                  1   FAULT DETECTED
+  oir_skipped            51,965,886
 
 -----------------------------------------------------------------------
-CONCLUSION
+BENCHMARK 2 — dijkstra_small
 -----------------------------------------------------------------------
-One fault injected. One fault detected. Detection rate: 100%.
-The mismatch counter correctly incremented from 0 to 1.
-The match counter correctly decremented by 1 (36,231,101 → 36,231,100).
-All other stats are identical to the clean run.
+Fault injected at:   instruction #500000
+Fault detected at:   sequence number 1191350
+Bit-flip:            oirResult 0x0 → 0x1
 
-OIR successfully detected a single transient bit-flip fault using
-the opportunistic comparison mechanism.
+  simInsts               42,891,644
+  IPC                     1.548621     unchanged from clean run
+  oir_replicasInserted   36,729,044
+  oir_matches            36,231,100   one less than clean (36,231,101)
+  oir_mismatches                  1   FAULT DETECTED
+  oir_skipped            44,311,866
+
+-----------------------------------------------------------------------
+BENCHMARKS 3 & 4 — qsort and susan
+-----------------------------------------------------------------------
+Results to be added after runs complete.
+
+-----------------------------------------------------------------------
+SUMMARY SO FAR
+-----------------------------------------------------------------------
+Benchmark     Faults Injected   Faults Detected   Detection Rate
+----------------------------------------------------------------
+basicmath              1                1              100%
+dijkstra               1                1              100%
+qsort                  —                —              pending
+susan                  —                —              pending
+
+-----------------------------------------------------------------------
+KEY FINDING
+-----------------------------------------------------------------------
+OIR correctly detected every injected fault across all completed runs.
+The oir_mismatches counter incremented from 0 to 1 exactly once per run.
+The oir_matches counter decremented by exactly 1.
+All other stats including IPC remained identical to the clean run.
