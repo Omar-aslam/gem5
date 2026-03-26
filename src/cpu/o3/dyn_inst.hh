@@ -87,6 +87,7 @@ class DynInst : public ExecContext, public RefCounted
     bool isReplica = false;
     bool hasReplica = false;
     uint64_t oirResult = 0;
+    uint64_t oirResultCopy = 0;  // OIR: saved at issue, compared at commit
     bool oirCompared = false;
     // =========================================================================
     // END OIR fields

@@ -1044,6 +1044,7 @@ InstructionQueue::scheduleReadyInsts()
             if (replicated >= emptySlots) break;
             if (!cand->hasReplica && !cand->isSquashed()) {
                 cand->hasReplica = true;
+                cand->oirResultCopy = cand->oirResult; // OIR: save baseline
                 ++iqStats.oir_replicasInserted;
                 ++replicated;
                 DPRINTF(IQ, "OIR: marked [sn:%llu] for replication\n",

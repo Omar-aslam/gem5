@@ -1257,16 +1257,36 @@ Commit::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     updateComInstStats(head_inst);
 
     // =========================================================================
-    // OIR: log commit stats — Group 19, ENGG 4540
+
+    // =========================================================================
+    // OIR FAULT INJECTION — Group 19, ENGG 4540
+    // Injects a single bit-flip at instruction #500000 to test mismatch detection
+    // =========================================================================
+    static uint64_t oir_inject_counter = 0;
+    static bool     oir_fault_injected = false;
+    if (head_inst->hasReplica && !oir_fault_injected) {
+        oir_inject_counter++;
+        if (oir_inject_counter == 500000) {
+            head_inst->oirResult ^= 0x1;
+            oir_fault_injected = true;
+            warn("OIR FAULT INJECTED at instruction #500000 — bit-flip applied\n");
+        }
+    }
+    // =========================================================================
+    // END FAULT INJECTION
+    // =========================================================================
+    // OIR: compare result vs stored replica result — Group 19, ENGG 4540
     // =========================================================================
     if (head_inst->hasReplica) {
-        ++stats.oir_matches;
-        DPRINTF(Commit, "OIR: [sn:%llu] primary has replica, logging match\n",
-                head_inst->seqNum);
+        if (head_inst->oirResult != head_inst->oirResultCopy) {
+            ++stats.oir_mismatches;
+            warn("OIR: FAULT DETECTED [sn:%llu] original=0x%llx flipped=0x%llx\n",
+                 head_inst->seqNum, head_inst->oirResultCopy, head_inst->oirResult);
+        } else {
+            ++stats.oir_matches;
+        }
     } else {
         ++stats.oir_skipped;
-        DPRINTF(Commit, "OIR: [sn:%llu] no replica, skipping\n",
-                head_inst->seqNum);
     }
     // =========================================================================
     // END OIR
