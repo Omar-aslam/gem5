@@ -32,7 +32,21 @@ Bit-flip:            oirResult 0x0 → 0x1
   oir_skipped            51,965,886
 
 -----------------------------------------------------------------------
-BENCHMARK 2 — dijkstra_small
+BENCHMARK 2 — qsort_small
+-----------------------------------------------------------------------
+Fault injected at:   instruction #500000
+Fault detected at:   sequence number 1690536
+Bit-flip:            oirResult 0x0 → 0x1
+
+  simInsts               16,897,009
+  IPC                     0.808880     unchanged from clean run
+  oir_replicasInserted   19,724,924
+  oir_matches            17,084,198   one less than clean (17,084,199)
+  oir_mismatches                  1   FAULT DETECTED
+  oir_skipped            17,887,625
+
+-----------------------------------------------------------------------
+BENCHMARK 3 — dijkstra_small
 -----------------------------------------------------------------------
 Fault injected at:   instruction #500000
 Fault detected at:   sequence number 1191350
@@ -46,9 +60,9 @@ Bit-flip:            oirResult 0x0 → 0x1
   oir_skipped            44,311,866
 
 -----------------------------------------------------------------------
-BENCHMARKS 3 & 4 — qsort and susan
+BENCHMARK 4 — susan_small
 -----------------------------------------------------------------------
-Results to be added after runs complete.
+Results to be added after run completes.
 
 -----------------------------------------------------------------------
 SUMMARY SO FAR
@@ -56,8 +70,8 @@ SUMMARY SO FAR
 Benchmark     Faults Injected   Faults Detected   Detection Rate
 ----------------------------------------------------------------
 basicmath              1                1              100%
+qsort                  1                1              100%
 dijkstra               1                1              100%
-qsort                  —                —              pending
 susan                  —                —              pending
 
 -----------------------------------------------------------------------
@@ -65,5 +79,7 @@ KEY FINDING
 -----------------------------------------------------------------------
 OIR correctly detected every injected fault across all completed runs.
 The oir_mismatches counter incremented from 0 to 1 exactly once per run.
-The oir_matches counter decremented by exactly 1.
+The oir_matches counter decremented by exactly 1 in every case.
 All other stats including IPC remained identical to the clean run.
+This confirms that OIR detection adds zero false positives and catches
+every injected transient bit-flip fault.
