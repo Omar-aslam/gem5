@@ -1,8 +1,4 @@
 # Opportunistic Instruction Replication (OIR) for Fault Tolerance
-**ENGG 4540 — Advanced Computer Architecture**
-**Group 19, Project 21**
-Omar Aslam (1213198) | Abdallah Al Hussami (1230248)
-
 Based on: Waser et al., "FAULTLESS," DIMVA 2025
 DOI: https://doi.org/10.1007/978-3-031-97623-0_18
 
