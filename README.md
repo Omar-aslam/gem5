@@ -1,99 +1,227 @@
-# The gem5 Simulator
+# Opportunistic Instruction Replication (OIR) for Fault Tolerance
+**ENGG 4540 — Advanced Computer Architecture**
+**Group 19, Project 21**
+Omar Aslam (1213198) | Abdallah Al Hussami (1230248)
 
-This is the repository for the gem5 simulator. It contains the full source code
-for the simulator and all tests and regressions.
+Based on: Waser et al., "FAULTLESS," DIMVA 2025
+DOI: https://doi.org/10.1007/978-3-031-97623-0_18
 
-The gem5 simulator is a modular platform for computer-system architecture
-research, encompassing system-level architecture as well as processor
-microarchitecture. It is primarily used to evaluate new hardware designs,
-system software changes, and compile-time and run-time system optimizations.
+---
 
-The main website can be found at <http://www.gem5.org>.
+## What This Project Does
 
-## Testing status
+This project implements Opportunistic Instruction Replication (OIR)
+inside the gem5 out-of-order CPU simulator. When a 4-wide processor
+issues fewer than 4 instructions in a cycle, the spare slots are used
+to schedule replicas of recently issued ALU instructions. At the commit
+stage, each primary result is compared against a baseline copy saved at
+issue time. A mismatch indicates a transient fault.
 
-**Note**: These regard tests run on the develop branch of gem5:
-<https://github.com/gem5/gem5/tree/develop>.
+---
 
-[![Daily Tests](https://github.com/gem5/gem5/actions/workflows/daily-tests.yaml/badge.svg?branch=develop)](https://github.com/gem5/gem5/actions/workflows/daily-tests.yaml)
-[![Weekly Tests](https://github.com/gem5/gem5/actions/workflows/weekly-tests.yaml/badge.svg?branch=develop)](https://github.com/gem5/gem5/actions/workflows/weekly-tests.yaml)
-[![Compiler Tests](https://github.com/gem5/gem5/actions/workflows/compiler-tests.yaml/badge.svg?branch=develop)](https://github.com/gem5/gem5/actions/workflows/compiler-tests.yaml)
+## Repository Branches
 
-## Getting started
+| Branch | Purpose |
+|--------|---------|
+| `oir-implementation` | Clean OIR with zero overhead — use this for clean runs |
+| `fault-injection` | Adds a single bit-flip at instruction #500000 for detection testing |
+| `submission` | This branch — clean code + full README for submission |
 
-A good starting point is <http://www.gem5.org/about>, and for
-more information about building the simulator and getting started
-please see <http://www.gem5.org/documentation> and
-<http://www.gem5.org/documentation/learning_gem5/introduction>.
+---
 
-## Building gem5
+## Files Modified from gem5 Baseline
 
-To build gem5, you will need the following software: g++ or clang,
-Python (gem5 links in the Python interpreter), SCons, zlib, m4, and lastly
-protobuf if you want trace capture and playback support. Please see
-<http://www.gem5.org/documentation/general_docs/building> for more details
-concerning the minimum versions of these tools.
+All modifications are confined to three source files inside
+`src/cpu/o3/`. No other files were changed.
 
-Once you have all dependencies resolved, execute
-`scons build/ALL/gem5.opt` to build an optimized version of the gem5 binary
-(`gem5.opt`) containing all gem5 ISAs. If you only wish to compile gem5 to
-include a single ISA, you can replace `ALL` with the name of the ISA. Valid
-options include `ARM`, `NULL`, `MIPS`, `POWER`, `RISCV`, `SPARC`, and `X86`
-The complete list of options can be found in the build_opts directory.
+### 1. `src/cpu/o3/dyn_inst.hh`
+**What it does:** Defines the instruction object used throughout the pipeline.
 
-See https://www.gem5.org/documentation/general_docs/building for more
-information on building gem5.
+**Our additions:** Five new fields added to the `DynInst` class:
+- `bool isReplica` — marks this instruction as a replica copy
+- `bool hasReplica` — marks that a replica has been assigned to this instruction
+- `uint64_t oirResult` — stores the execution result captured at issue time
+- `uint64_t oirResultCopy` — baseline copy saved before any fault can occur; compared at commit
+- `bool oirCompared` — prevents the same instruction from being compared twice
 
-## The Source Tree
+### 2. `src/cpu/o3/inst_queue.hh` and `inst_queue.cc`
+**What it does:** Manages the instruction queue and dispatch logic.
 
-The main source tree includes these subdirectories:
+**Our additions:**
+- Three new statistics counters declared in `inst_queue.hh`:
+  - `oir_emptySlotsTotal` — total empty issue slots observed across all cycles
+  - `oir_replicasInserted` — how many instructions were marked for replication
+  - `oir_candidatesSkipped` — how many eligible candidates were found but had no spare slot
+- Post-selection scan added to `scheduleReadyInsts()` in `inst_queue.cc`:
+  - Runs every cycle after normal instruction dispatch
+  - Counts empty slots: `emptySlots = issueWidth - total_issued`
+  - Scans a window of recently issued instructions for ALU candidates
+  - Excludes memory operations and branches (non-idempotent side effects)
+  - For each eligible candidate, sets `hasReplica = true` and saves `oirResultCopy`
 
-* build_opts: pre-made default configurations for gem5
-* build_tools: tools used internally by gem5's build process.
-* configs: example simulation configuration scripts
-* ext: less-common external packages needed to build gem5
-* include: include files for use in other programs
-* site_scons: modular components of the build system
-* src: source code of the gem5 simulator. The C++ source, Python wrappers, and Python standard library are found in this directory.
-* system: source for some optional system software for simulated systems
-* tests: regression tests
-* util: useful utility programs and files
+### 3. `src/cpu/o3/commit.hh` and `commit.cc`
+**What it does:** Manages the commit stage where instructions retire.
 
-## gem5 Resources
+**Our additions:**
+- Three new statistics counters declared in `commit.hh`:
+  - `oir_matches` — primary and replica results agreed; clean commit
+  - `oir_mismatches` — results differed; transient fault detected
+  - `oir_skipped` — instruction had no replica; committed normally
+- Comparator logic added to `commitHead()` in `commit.cc`:
+  - Runs before every instruction retires
+  - If `hasReplica` is false: commit normally, increment `oir_skipped`
+  - If `hasReplica` is true and `oirResult == oirResultCopy`: commit, increment `oir_matches`
+  - If `hasReplica` is true and `oirResult != oirResultCopy`: fault detected, increment `oir_mismatches`
 
-To run full-system simulations, you may need compiled system firmware, kernel
-binaries and one or more disk images, depending on gem5's configuration and
-what type of workload you're trying to run. Many of these resources can be
-obtained from <https://resources.gem5.org>.
+---
 
-More information on gem5 Resources can be found at
-<https://www.gem5.org/documentation/general_docs/gem5_resources/>.
+## Dependencies
 
-## Getting Help, Reporting bugs, and Requesting Features
+These are the packages required to build gem5 on Ubuntu 22.04 or later.
+Run the following command before building:
+```bash
+sudo apt update && sudo apt install -y \
+    build-essential git m4 scons zlib1g zlib1g-dev \
+    libprotobuf-dev protobuf-compiler libprotoc-dev \
+    libgoogle-perftools-dev python3-dev python3-six \
+    python3-pydot libboost-all-dev pkg-config
+```
 
-We provide a variety of channels for users and developers to get help, report
-bugs, requests features, or engage in community discussions. Below
-are a few of the most common we recommend using.
+**Python version:** 3.8 or later
+**SCons version:** 4.0 or later
+**GCC version:** 9 or later
 
-* **GitHub Discussions**: A GitHub Discussions page. This can be used to start
-discussions or ask questions. Available at
-<https://github.com/orgs/gem5/discussions>.
-* **GitHub Issues**: A GitHub Issues page for reporting bugs or requesting
-features. Available at <https://github.com/gem5/gem5/issues>.
-* **Jira Issue Tracker**: A Jira Issue Tracker for reporting bugs or requesting
-features. Available at <https://gem5.atlassian.net/>.
-* **Slack**: A Slack server with a variety of channels for the gem5 community
-to engage in a variety of discussions. Please visit
-<https://www.gem5.org/join-slack> to join.
-* **gem5-users@gem5.org**: A mailing list for users of gem5 to ask questions
-or start discussions. To join the mailing list please visit
-<https://www.gem5.org/mailing_lists>.
-* **gem5-dev@gem5.org**: A mailing list for developers of gem5 to ask questions
-or start discussions. To join the mailing list please visit
-<https://www.gem5.org/mailing_lists>.
+---
 
-## Contributing to gem5
+## Build Instructions
+```bash
+# Clone this repository
+git clone https://github.com/Omar-aslam/gem5.git gem5-oir
+cd gem5-oir
 
-We hope you enjoy using gem5. When appropriate we advise sharing your
-contributions to the project. <https://www.gem5.org/contributing> can help you
-get started. Additional information can be found in the CONTRIBUTING.md file.
+# Switch to the submission branch
+git checkout submission
+
+# Build gem5 for X86 (takes 30-60 minutes on first build)
+scons build/X86/gem5.opt -j$(nproc)
+```
+
+Type `y` if prompted about git hooks. Build is complete when you see:
+y
+---
+
+## Running the Benchmarks
+
+### Get MiBench
+```bash
+cd ~
+git clone https://github.com/embecosm/mibench.git
+cd mibench/automotive/basicmath && make
+cd ../qsort && make
+cd ../susan && make
+cd ~/mibench/network/dijkstra && make
+```
+
+### Run Each Benchmark
+
+Replace `/home/$USER` with your actual home directory path.
+
+**basicmath:**
+```bash
+cd ~/gem5-oir
+./build/X86/gem5.opt -d m5out_basicmath \
+    configs/deprecated/example/se.py \
+    --cmd=/home/$USER/mibench/automotive/basicmath/basicmath_small \
+    --cpu-type=O3CPU --caches
+```
+
+**qsort:**
+```bash
+./build/X86/gem5.opt -d m5out_qsort \
+    configs/deprecated/example/se.py \
+    --cmd=/home/$USER/mibench/automotive/qsort/qsort_small \
+    --options="/home/$USER/mibench/automotive/qsort/input_small.dat" \
+    --cpu-type=O3CPU --caches
+```
+
+**susan:**
+```bash
+./build/X86/gem5.opt -d m5out_susan \
+    configs/deprecated/example/se.py \
+    --cmd=/home/$USER/mibench/automotive/susan/susan \
+    --options="/home/$USER/mibench/automotive/susan/input_small.pgm /tmp/out.pgm -s" \
+    --cpu-type=O3CPU --caches
+```
+
+**dijkstra:**
+```bash
+./build/X86/gem5.opt -d m5out_dijkstra \
+    configs/deprecated/example/se.py \
+    --cmd=/home/$USER/mibench/network/dijkstra/dijkstra_small \
+    --options="/home/$USER/mibench/network/dijkstra/input.dat" \
+    --cpu-type=O3CPU --caches
+```
+
+---
+
+## Reading the OIR Statistics
+
+After each run, extract the OIR stats from the output directory:
+```bash
+grep "oir_\|system.cpu.ipc\|simInsts" m5out_basicmath/stats.txt
+```
+
+Expected output format:
+simInsts                              48,814,702
+system.cpu.ipc                         1.161533
+system.cpu.oir_emptySlotsTotal       225,581,080
+system.cpu.oir_replicasInserted       43,113,908
+system.cpu.oir_candidatesSkipped      22,264,699
+system.cpu.commit.oir_matches         42,077,217
+system.cpu.commit.oir_mismatches               0
+system.cpu.commit.oir_skipped         51,965,886
+`oir_mismatches` should be **0** on all clean runs.
+
+---
+
+## Running Fault Injection
+
+Switch to the fault-injection branch to test detection:
+```bash
+git checkout fault-injection
+scons build/X86/gem5.opt -j$(nproc)
+```
+
+Then run any benchmark as above. The simulation will print:
+warn: OIR FAULT INJECTED at instruction #500000 — bit-flip applied
+warn: OIR: FAULT DETECTED [sn:XXXXXXX] original=0x0 flipped=0x1
+And `oir_mismatches` will equal **1** in the stats file.
+
+---
+
+## Expected Results Summary
+
+| Benchmark | IPC | Overhead | Replicas | Coverage | Mismatches |
+|-----------|-----|----------|----------|----------|------------|
+| basicmath | 1.1615 | 0% | 43.1M | 88% | 0 |
+| qsort | 0.8089 | 0% | 19.7M | 57% | 0 |
+| susan | 2.0246 | 0% | 20.5M | 85% | 0 |
+| dijkstra | 1.5486 | 0% | 36.7M | 86% | 0 |
+
+Fault injection: 4/4 detected, 100% detection rate, 0% IPC impact.
+
+---
+
+## Results Files
+
+Pre-computed results are saved in `oir_results/`:
+- `oir_results/all_results.txt` — clean run results for all 4 benchmarks
+- `oir_results/fault_injection_results.txt` — fault injection results for all 4 benchmarks
+
+---
+
+## References
+
+- Waser et al., "FAULTLESS," DIMVA 2025. https://doi.org/10.1007/978-3-031-97623-0_18
+- gem5 Simulator: https://www.gem5.org
+- MiBench: https://github.com/embecosm/mibench
