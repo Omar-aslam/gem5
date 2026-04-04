@@ -102,7 +102,7 @@ git checkout submission
 scons build/X86/gem5.opt -j$(nproc)
 ```
 
-Type `y` if prompted about git hooks. Build is complete when you see:
+**Type `y` if prompted about git hooks. Build is complete when you see:
 y
 ---
 
