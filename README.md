@@ -167,16 +167,7 @@ After each run, extract the OIR stats from the output directory:
 grep "oir_\|system.cpu.ipc\|simInsts" m5out_basicmath/stats.txt
 ```
 
-Expected output format:
-simInsts                              48,814,702
-system.cpu.ipc                         1.161533
-system.cpu.oir_emptySlotsTotal       225,581,080
-system.cpu.oir_replicasInserted       43,113,908
-system.cpu.oir_candidatesSkipped      22,264,699
-system.cpu.commit.oir_matches         42,077,217
-system.cpu.commit.oir_mismatches               0
-system.cpu.commit.oir_skipped         51,965,886
-`oir_mismatches` should be **0** on all clean runs.
+
 
 ---
 
@@ -189,7 +180,9 @@ scons build/X86/gem5.opt -j$(nproc)
 ```
 
 Then run any benchmark as above. The simulation will print:
-warn: OIR FAULT INJECTED at instruction #500000 — bit-flip applied
+
+warn: OIR FAULT INJECTED at instruction #500000, bit-flip applied
+
 warn: OIR: FAULT DETECTED [sn:XXXXXXX] original=0x0 flipped=0x1
 And `oir_mismatches` will equal **1** in the stats file.
 
