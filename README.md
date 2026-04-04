@@ -21,7 +21,7 @@ issue time. A mismatch indicates a transient fault.
 |--------|---------|
 | `oir-implementation` | Clean OIR with zero overhead — use this for clean runs |
 | `fault-injection` | Adds a single bit-flip at instruction #500000 for detection testing |
-| `submission` | This branch — clean code + full README for submission |
+| `submission` | Clean code + full README |
 
 ---
 
